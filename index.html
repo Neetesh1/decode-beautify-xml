@@ -75,7 +75,8 @@
 
         function beautify() {
             var obj = document.getElementById('dencoder');
-            var text = obj.value;
+            var text =  obj.value;
+            text = text.replace(/^"|"$/g, '')
             const beautifiedXmlText = new XmlBeautify().beautify(text);
             editor.getSession().setValue(beautifiedXmlText);
         }
