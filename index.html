@@ -3,7 +3,7 @@
 
 <head>
     <meta http-equiv="content-type" content="text/html; charset=utf-8">
-    <title>URL Decoder and XML Beautifier</title>
+    <title>URL Decoder, XML and JSON Beautifier</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/css/bootstrap.min.css" rel="stylesheet"
         integrity="sha384-gH2yIJqKdNHPEq0n4Mqa/HGKIhSkIHeL5AyhkYV8i59U5AR6csBvApHHNl/vI1Bx" crossorigin="anonymous">
     <style type="text/css">
@@ -29,11 +29,48 @@
             var unencoded = obj.value;
             obj.value = encodeURIComponent(unencoded).replace(/'/g, "%27").replace(/"/g, "%22");
         }
+
         function decode() {
             var obj = document.getElementById('dencoder');
             var encoded = obj.value;
             obj.value = decodeURIComponent(encoded.replace(/\+/g, " "));
             beautify();
+        }
+
+        function beautify() {
+            var obj = document.getElementById('dencoder');
+            var text = obj.value;
+            text = text.replace(/^"|"$/g, '');
+
+            try {
+                // Try to parse XML
+                var parser = new DOMParser();
+                var xmlDoc = parser.parseFromString(text, "application/xml");
+
+                // Check for XML parsing errors
+                if (xmlDoc.getElementsByTagName("parsererror").length > 0) {
+                    throw new Error("Invalid XML: " + xmlDoc.getElementsByTagName("parsererror")[0].textContent);
+                }
+
+                // Beautify XML using XmlBeautify library
+                const beautifiedXmlText = new XmlBeautify().beautify(text);
+                editor.getSession().setValue(beautifiedXmlText);
+            } catch (e) {
+                alert("Error: " + e.message);
+            }
+        }
+
+
+        function beautifyJson() {
+            var obj = document.getElementById('dencoder');
+            var text = obj.value;
+            try {
+                var json = JSON.parse(text);
+                var beautifiedJsonText = JSON.stringify(json, null, 4);
+                editor.getSession().setValue(beautifiedJsonText);
+            } catch (e) {
+                alert("Invalid JSON: " + e.message);
+            }
         }
     </script>
 </head>
@@ -41,7 +78,7 @@
 <body>
     <div class="container">
         <div class="py-2 text-center">
-            <h1>URL Decoder and XML Beautifier</h1>
+            <h1>URL Decoder, XML and JSON Beautifier</h1>
         </div>
 
         <div class="row">
@@ -53,17 +90,19 @@
                     <div class="pt-2">
                         <input class="btn btn-primary" type="button" onclick="decode()" value="Decode">
                         <input class="btn btn-primary" type="button" onclick="encode()" value="Encode">
-                        <input class="btn btn-success" type="button" onclick="beautify()" value="Beautify">
+                        <input class="btn btn-success" type="button" onclick="beautify()" value="Beautify XML">
+                        <input class="btn btn-success" type="button" onclick="beautifyJson()" value="Beautify JSON">
                     </div>
                     <ul class="pt-2">
                         <li class="text-muted">Input a string of text and encode or decode it as you like.</li>
-                        <li class="text-muted">Add xml on left and click on Beautify button.</li>
+                        <li class="text-muted">Add XML or JSON on the left and click on the corresponding Beautify button.</li>
+                        <li class="text-muted">Click "Beautify XML" to format XML text, or "Beautify JSON" to format JSON text.</li>
                     </ul>
                 </form>
             </div>
 
             <div class="col-md-6">
-                <h2>Beautified XML</h2>
+                <h2>Beautified Output</h2>
                 <pre id="editor"></pre>
             </div>
         </div>
@@ -72,14 +111,6 @@
     <script>
         var editor = ace.edit("editor");
         editor.session.setMode("ace/mode/xml");
-
-        function beautify() {
-            var obj = document.getElementById('dencoder');
-            var text =  obj.value;
-            text = text.replace(/^"|"$/g, '')
-            const beautifiedXmlText = new XmlBeautify().beautify(text);
-            editor.getSession().setValue(beautifiedXmlText);
-        }
     </script>
     <script src="https://cdn.jsdelivr.net/npm/xml-beautify@1.2.3/dist/XmlBeautify.js"></script>
 </body>
