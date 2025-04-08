@@ -6,6 +6,8 @@
     <title>URL Decoder, XML and JSON Beautifier</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/css/bootstrap.min.css" rel="stylesheet"
         integrity="sha384-gH2yIJqKdNHPEq0n4Mqa/HGKIhSkIHeL5AyhkYV8i59U5AR6csBvApHHNl/vI1Bx" crossorigin="anonymous">
+    <!-- Add SweetAlert CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
     <style type="text/css">
         h1, h2 {
             border-bottom: 2px solid #a1adb9;
@@ -42,6 +44,61 @@
         .instructions li {
             padding: 5px 0;
         }
+        
+        /* Styles for comparison view */
+        #comparison-container {
+            display: none;
+            margin-top: 20px;
+            border: 1px solid #ced4da;
+            background: #f8f9fa;
+        }
+        
+        .comparison-header {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            background: #e9ecef;
+            border-bottom: 1px solid #ced4da;
+        }
+        
+        .comparison-title {
+            font-weight: bold;
+        }
+        
+        #compare-editor {
+            height: 60vh;
+            width: 100%;
+        }
+        
+        .diff-added {
+            background-color: rgba(0, 255, 0, 0.2);
+        }
+        
+        .diff-removed {
+            background-color: rgba(255, 0, 0, 0.2);
+        }
+        
+        .comparison-inputs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .comparison-inputs textarea {
+            flex: 1;
+            height: 150px;
+        }
+        
+        .comparison-labels {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 5px;
+        }
+        
+        .comparison-labels div {
+            flex: 1;
+            font-weight: bold;
+        }
     </style>
 
     <script>
@@ -55,7 +112,7 @@
             var obj = document.getElementById('dencoder');
             var encoded = obj.value;
             obj.value = decodeURIComponent(encoded.replace(/\+/g, " "));
-            beautify();
+            // Don't automatically beautify, let user choose
         }
 
         function beautify() {
@@ -64,6 +121,9 @@
             text = text.replace(/^"|"$/g, '');
 
             try {
+                // Fix the XML declaration if it exists but has been malformed
+                text = text.replace(/(<\?xml[^>]*?)encoding="sion="1.0"([^>]*?\?>)/g, '$1$2');
+                
                 // Try to parse XML
                 var parser = new DOMParser();
                 var xmlDoc = parser.parseFromString(text, "application/xml");
@@ -73,11 +133,49 @@
                     throw new Error("Invalid XML: " + xmlDoc.getElementsByTagName("parsererror")[0].textContent);
                 }
 
-                // Beautify XML using XmlBeautify library
-                const beautifiedXmlText = new XmlBeautify().beautify(text);
-                editor.getSession().setValue(beautifiedXmlText);
+                // Use a custom function to format the XML properly
+                let formattedXml;
+                // If the text contains an XML declaration, handle it specially
+                if (text.trim().startsWith('<?xml')) {
+                    // Extract the declaration
+                    const declarationMatch = text.match(/(<\?xml[^>]*?\?>)/);
+                    const declaration = declarationMatch ? declarationMatch[0] : '';
+                    
+                    // Remove the declaration for beautification
+                    const contentWithoutDeclaration = text.replace(/(<\?xml[^>]*?\?>)/, '');
+                    
+                    // Beautify the content without the declaration
+                    const options = {
+                        indentString: '  ',
+                        preserveComments: true,
+                        preserveNewlines: false
+                    };
+                    
+                    // Beautify the XML content
+                    const beautifiedContent = new XmlBeautify(options).beautify(contentWithoutDeclaration);
+                    
+                    // Combine the declaration and beautified content
+                    formattedXml = declaration + '\n' + beautifiedContent;
+                } else {
+                    // If there's no XML declaration, use the normal beautification
+                    const options = {
+                        indentString: '  ',
+                        preserveComments: true,
+                        preserveNewlines: false
+                    };
+                    formattedXml = new XmlBeautify(options).beautify(text);
+                }
+                
+                // Set editor mode to XML for proper syntax highlighting
+                editor.session.setMode("ace/mode/xml");
+                editor.getSession().setValue(formattedXml);
             } catch (e) {
-                alert("Error: " + e.message);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: e.message,
+                    confirmButtonColor: '#3085d6'
+                });
             }
         }
 
@@ -87,10 +185,347 @@
             try {
                 var json = JSON.parse(text);
                 var beautifiedJsonText = JSON.stringify(json, null, 4);
+                
+                // Set editor mode to JSON for proper syntax highlighting
+                editor.session.setMode("ace/mode/json");
                 editor.getSession().setValue(beautifiedJsonText);
             } catch (e) {
-                alert("Invalid JSON: " + e.message);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Invalid JSON',
+                    text: e.message,
+                    confirmButtonColor: '#3085d6'
+                });
             }
+        }
+        
+        // Function to prepare text for comparison by beautifying XML
+        function prepareXmlForComparison(text) {
+            try {
+                text = text.replace(/^"|"$/g, '');
+                
+                // Fix the XML declaration if it exists but has been malformed
+                text = text.replace(/(<\?xml[^>]*?)encoding="sion="1.0"([^>]*?\?>)/g, '$1$2');
+                
+                let formattedXml;
+                if (text.trim().startsWith('<?xml')) {
+                    const declarationMatch = text.match(/(<\?xml[^>]*?\?>)/);
+                    const declaration = declarationMatch ? declarationMatch[0] : '';
+                    const contentWithoutDeclaration = text.replace(/(<\?xml[^>]*?\?>)/, '');
+                    
+                    const options = {
+                        indentString: '  ',
+                        preserveComments: true,
+                        preserveNewlines: false
+                    };
+                    
+                    const beautifiedContent = new XmlBeautify(options).beautify(contentWithoutDeclaration);
+                    formattedXml = declaration + '\n' + beautifiedContent;
+                } else {
+                    const options = {
+                        indentString: '  ',
+                        preserveComments: true,
+                        preserveNewlines: false
+                    };
+                    formattedXml = new XmlBeautify(options).beautify(text);
+                }
+                
+                return formattedXml;
+            } catch (e) {
+                console.error("Error formatting XML for comparison:", e);
+                return text; // Return original text if beautification fails
+            }
+        }
+        
+        // Function to prepare text for comparison by beautifying JSON
+        function prepareJsonForComparison(text) {
+            try {
+                const json = JSON.parse(text);
+                return JSON.stringify(json, null, 2);
+            } catch (e) {
+                console.error("Error formatting JSON for comparison:", e);
+                return text; // Return original text if beautification fails
+            }
+        }
+        
+        // Function to compare XML
+        function compareXml() {
+            const originalText = document.getElementById('original-xml').value;
+            const newText = document.getElementById('new-xml').value;
+            
+            if (!originalText || !newText) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Missing Input',
+                    text: 'Please enter both original and new XML to compare',
+                    confirmButtonColor: '#3085d6'
+                });
+                return;
+            }
+            
+            try {
+                // Beautify both XML inputs for better comparison
+                const formattedOriginal = prepareXmlForComparison(originalText);
+                const formattedNew = prepareXmlForComparison(newText);
+                
+                // Show the comparison interface
+                document.getElementById('comparison-container').style.display = 'block';
+                document.getElementById('editor').style.display = 'none';
+                
+                // Initialize the diff editor
+                if (!window.diffEditor) {
+                    window.diffEditor = ace.edit("compare-editor");
+                    window.diffEditor.setTheme("ace/theme/textmate");
+                    window.diffEditor.session.setMode("ace/mode/xml");
+                    window.diffEditor.setShowPrintMargin(false);
+                    window.diffEditor.setReadOnly(true);
+                } else {
+                    window.diffEditor.session.setMode("ace/mode/xml");
+                }
+                
+                // Show the diff using the diff-match-patch library
+                showDiff(formattedOriginal, formattedNew);
+            } catch (e) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error Comparing XML',
+                    text: e.message,
+                    confirmButtonColor: '#3085d6'
+                });
+            }
+        }
+        
+        // Function to compare JSON
+        function compareJson() {
+            const originalText = document.getElementById('original-json').value;
+            const newText = document.getElementById('new-json').value;
+            
+            if (!originalText || !newText) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Missing Input',
+                    text: 'Please enter both original and new JSON to compare',
+                    confirmButtonColor: '#3085d6'
+                });
+                return;
+            }
+            
+            try {
+                // Beautify both JSON inputs for better comparison
+                const formattedOriginal = prepareJsonForComparison(originalText);
+                const formattedNew = prepareJsonForComparison(newText);
+                
+                // Show the comparison interface
+                document.getElementById('comparison-container').style.display = 'block';
+                document.getElementById('editor').style.display = 'none';
+                
+                // Initialize the diff editor
+                if (!window.diffEditor) {
+                    window.diffEditor = ace.edit("compare-editor");
+                    window.diffEditor.setTheme("ace/theme/textmate");
+                    window.diffEditor.session.setMode("ace/mode/json");
+                    window.diffEditor.setShowPrintMargin(false);
+                    window.diffEditor.setReadOnly(true);
+                } else {
+                    window.diffEditor.session.setMode("ace/mode/json");
+                }
+                
+                // Show the diff using the diff-match-patch library
+                showDiff(formattedOriginal, formattedNew);
+            } catch (e) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error Comparing JSON',
+                    text: e.message,
+                    confirmButtonColor: '#3085d6'
+                });
+            }
+        }
+        
+        // Function to show the diff in a highlighted way
+        function showDiff(oldText, newText) {
+            try {
+                // Check if diff_match_patch is available
+                if (typeof diff_match_patch === 'undefined') {
+                    // Try to load it dynamically
+                    loadDiffLibrary().then(() => {
+                        // Retry after loading
+                        setTimeout(() => showDiff(oldText, newText), 500);
+                    }).catch(e => {
+                        throw new Error("Failed to load diff_match_patch library: " + e.message);
+                    });
+                    return;
+                }
+                
+                const dmp = new diff_match_patch();
+                const diffs = dmp.diff_main(oldText, newText);
+                dmp.diff_cleanupSemantic(diffs);
+                
+                // Use a custom approach to display colorized diff
+                let diffHtml = '';
+                let lineNumber = 0;
+                const lines = oldText.split('\n');
+                
+                // Create an array to track line changes
+                const lineChanges = new Array(lines.length + 1).fill(0); // 0=unchanged, 1=added, -1=removed
+                
+                // Track position in original text as we process the diffs
+                let pos = 0;
+                
+                // Process all diffs
+                for (let i = 0; i < diffs.length; i++) {
+                    const [op, text] = diffs[i];
+                    
+                    if (op === 0) { // unchanged
+                        pos += text.length;
+                    } else if (op === -1) { // deletion
+                        // Mark the current lines as removed
+                        const affectedText = oldText.substring(pos, pos + text.length);
+                        const affectedLines = affectedText.split('\n');
+                        const startLine = oldText.substring(0, pos).split('\n').length - 1;
+                        
+                        for (let j = 0; j < affectedLines.length; j++) {
+                            if (lineChanges[startLine + j] === 0) {
+                                lineChanges[startLine + j] = -1;
+                            }
+                        }
+                        
+                        pos += text.length;
+                    }
+                }
+                
+                // Process adds by checking the diffs again
+                let newPos = 0;
+                for (let i = 0; i < diffs.length; i++) {
+                    const [op, text] = diffs[i];
+                    
+                    if (op === 0) { // unchanged
+                        newPos += text.length;
+                    } else if (op === 1) { // addition
+                        // For additions in the new text, we'll just mark them specially
+                        diffHtml += `<div class="diff-added">${text.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`;
+                    }
+                }
+                
+                // Create the diff display
+                let processedText = '';
+                for (let i = 0; i < lines.length; i++) {
+                    if (lineChanges[i] === -1) {
+                        processedText += `<div class="diff-removed">${lines[i].replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`;
+                    } else {
+                        processedText += `<div>${lines[i].replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`;
+                    }
+                }
+                
+                // Use a better approach - create two editor instances and use Ace's diff feature
+                const originalContent = oldText;
+                const newContent = newText;
+                
+                // Create a simpler but more effective diff presentation
+                window.diffEditor.setValue("");
+                const highlighted = generateHighlightedDiff(originalContent, newContent);
+                const diffContainer = document.getElementById('compare-editor');
+                diffContainer.innerHTML = highlighted;
+            } catch (e) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Diff Processing Error',
+                    text: e.message,
+                    confirmButtonColor: '#3085d6'
+                });
+                console.error(e);
+                // Fallback display method - just show side-by-side view
+                const diffContainer = document.getElementById('compare-editor');
+                diffContainer.innerHTML = `
+                    <div style="display:flex;height:100%">
+                        <div style="flex:1;padding:10px;border-right:1px solid #ccc;white-space:pre;overflow:auto">${oldText.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+                        <div style="flex:1;padding:10px;white-space:pre;overflow:auto">${newText.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+                    </div>
+                `;
+            }
+        }
+        
+        // Function to generate a highlighted diff
+        function generateHighlightedDiff(oldText, newText) {
+            try {
+                if (typeof diff_match_patch === 'undefined') {
+                    throw new Error("diff_match_patch library not available");
+                }
+                
+                const dmp = new diff_match_patch();
+                const diffs = dmp.diff_main(oldText, newText);
+                dmp.diff_cleanupSemantic(diffs);
+                
+                let html = '<div style="white-space:pre;padding:10px;font-family:monospace">';
+                
+                for (const [op, text] of diffs) {
+                    const safeText = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    
+                    if (op === -1) { // deletion
+                        html += `<span style="background-color:rgba(255,0,0,0.2)">${safeText}</span>`;
+                    } else if (op === 1) { // addition
+                        html += `<span style="background-color:rgba(0,255,0,0.2)">${safeText}</span>`;
+                    } else { // unchanged
+                        html += `<span>${safeText}</span>`;
+                    }
+                }
+                
+                html += '</div>';
+                return html;
+            } catch (e) {
+                console.error("Error generating highlighted diff:", e);
+                return `<div style="padding:10px">
+                    <p>Error generating diff view. Showing raw text:</p>
+                    <div style="white-space:pre;font-family:monospace">${newText.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+                </div>`;
+            }
+        }
+        
+        // Function to load the diff library dynamically
+        function loadDiffLibrary() {
+            return new Promise((resolve, reject) => {
+                if (typeof diff_match_patch !== 'undefined') {
+                    resolve();
+                    return;
+                }
+                
+                const script = document.createElement('script');
+                script.src = "https://cdnjs.cloudflare.com/ajax/libs/diff_match_patch/20121119/diff_match_patch.js";
+                script.onload = () => {
+                    console.log("diff_match_patch library loaded successfully");
+                    resolve();
+                };
+                script.onerror = () => {
+                    console.error("Failed to load diff_match_patch library");
+                    // Try an alternative CDN if the first one fails
+                    const alternativeScript = document.createElement('script');
+                    alternativeScript.src = "https://cdn.jsdelivr.net/npm/diff-match-patch@1.0.5/index.min.js";
+                    alternativeScript.onload = () => {
+                        console.log("diff_match_patch library loaded successfully from alternative source");
+                        resolve();
+                    };
+                    alternativeScript.onerror = () => {
+                        reject(new Error("Failed to load diff library from all sources"));
+                    };
+                    document.body.appendChild(alternativeScript);
+                };
+                document.body.appendChild(script);
+                
+                // Set a timeout in case the script hangs
+                setTimeout(() => {
+                    if (typeof diff_match_patch === 'undefined') {
+                        reject(new Error("Timeout loading diff library"));
+                    } else {
+                        resolve();
+                    }
+                }, 5000);
+            });
+        }
+        
+        // Function to reset the view back to normal
+        function resetView() {
+            document.getElementById('comparison-container').style.display = 'none';
+            document.getElementById('editor').style.display = 'block';
         }
     </script>
 </head>
@@ -119,18 +554,92 @@
                         <li class="text-muted">Click "Beautify XML" to format XML text, or "Beautify JSON" to format JSON text.</li>
                     </ul>
                 </form>
+                
+                <div class="mt-4">
+                    <ul class="nav nav-tabs" id="compareTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="xml-compare-tab" data-bs-toggle="tab" data-bs-target="#xml-compare" type="button" role="tab">Compare XML</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="json-compare-tab" data-bs-toggle="tab" data-bs-target="#json-compare" type="button" role="tab">Compare JSON</button>
+                        </li>
+                    </ul>
+                    
+                    <div class="tab-content border border-top-0 p-3" id="compareTabContent">
+                        <div class="tab-pane fade show active" id="xml-compare" role="tabpanel">
+                            <div class="comparison-labels">
+                                <div>Original XML</div>
+                                <div>New XML</div>
+                            </div>
+                            <div class="comparison-inputs">
+                                <textarea class="form-control" id="original-xml" placeholder="Paste original XML here"></textarea>
+                                <textarea class="form-control" id="new-xml" placeholder="Paste new XML here"></textarea>
+                            </div>
+                            <button class="btn btn-primary" onclick="compareXml()">Compare XML</button>
+                        </div>
+                        <div class="tab-pane fade" id="json-compare" role="tabpanel">
+                            <div class="comparison-labels">
+                                <div>Original JSON</div>
+                                <div>New JSON</div>
+                            </div>
+                            <div class="comparison-inputs">
+                                <textarea class="form-control" id="original-json" placeholder="Paste original JSON here"></textarea>
+                                <textarea class="form-control" id="new-json" placeholder="Paste new JSON here"></textarea>
+                            </div>
+                            <button class="btn btn-primary" onclick="compareJson()">Compare JSON</button>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div class="col-md-6">
                 <h2>Beautified Output</h2>
                 <pre id="editor"></pre>
+                
+                <div id="comparison-container">
+                    <div class="comparison-header">
+                        <span class="comparison-title">Comparison View</span>
+                        <button class="btn btn-sm btn-secondary" onclick="resetView()">Back to Normal View</button>
+                    </div>
+                    <div id="compare-editor"></div>
+                    <div class="p-2">
+                        <span class="badge bg-success">Green</span> = Added content
+                        <span class="badge bg-danger ms-2">Red</span> = Removed content
+                    </div>
+                </div>
             </div>
         </div>
     </div>
+    <!-- Updated CDN link for diff-match-patch -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/diff_match_patch/20121119/diff_match_patch.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://ajaxorg.github.io/ace-builds/src-min-noconflict/ace.js"></script>
+    <!-- Add SweetAlert JS -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
     <script>
-        var editor = ace.edit("editor");
-        editor.session.setMode("ace/mode/xml");
+        // Initialize comparison on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Remove sample data preloading
+            
+            // Attempt to preload the diff library
+            loadDiffLibrary().catch(console.error);
+            
+            // Initialize the editor
+            var editor = ace.edit("editor");
+            editor.session.setMode("ace/mode/xml");
+            editor.setShowPrintMargin(false);
+
+            // Welcome message remains commented out
+            // Swal.fire({
+            //     icon: 'info',
+            //     title: 'Welcome',
+            //     text: 'This tool helps you decode URLs, beautify XML and JSON, and compare different versions.',
+            //     confirmButtonColor: '#3085d6',
+            //     timer: 3000,
+            //     timerProgressBar: true
+            // });
+        });
     </script>
     <script src="https://cdn.jsdelivr.net/npm/xml-beautify@1.2.3/dist/XmlBeautify.js"></script>
 </body>
