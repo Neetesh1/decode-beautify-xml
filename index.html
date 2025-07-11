@@ -8,6 +8,8 @@
         integrity="sha384-gH2yIJqKdNHPEq0n4Mqa/HGKIhSkIHeL5AyhkYV8i59U5AR6csBvApHHNl/vI1Bx" crossorigin="anonymous">
     <!-- Add SweetAlert CSS -->
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+    <!-- Add Toastr CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" rel="stylesheet">
     <style type="text/css">
         h1, h2 {
             border-bottom: 2px solid #a1adb9;
@@ -195,12 +197,7 @@
                 window.editor.session.setMode("ace/mode/xml");
                 window.editor.getSession().setValue(formattedXml);
             } catch (e) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: e.message,
-                    confirmButtonColor: '#3085d6'
-                });
+                toastr.error(e.message, 'Error');
             }
         }
 
@@ -220,12 +217,7 @@
                 window.editor.session.setMode("ace/mode/json");
                 window.editor.getSession().setValue(beautifiedJsonText);
             } catch (e) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Invalid JSON',
-                    text: e.message,
-                    confirmButtonColor: '#3085d6'
-                });
+                toastr.error(e.message, 'Invalid JSON');
             }
         }
         
@@ -321,12 +313,7 @@
             const newText = document.getElementById('new-xml').value.trim();
             
             if (!originalText || !newText) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Missing Input',
-                    text: 'Please enter both original and new XML to compare',
-                    confirmButtonColor: '#3085d6'
-                });
+                toastr.warning('Please enter both original and new XML to compare', 'Missing Input');
                 return;
             }
             
@@ -347,12 +334,7 @@
                 
             } catch (e) {
                 console.error("Error in compareXml:", e);
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error Comparing XML',
-                    text: e.message,
-                    confirmButtonColor: '#3085d6'
-                });
+                toastr.error(e.message, 'Error Comparing XML');
             }
         }
         
@@ -362,12 +344,7 @@
             const newText = document.getElementById('new-json').value.trim();
             
             if (!originalText || !newText) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Missing Input',
-                    text: 'Please enter both original and new JSON to compare',
-                    confirmButtonColor: '#3085d6'
-                });
+                toastr.warning('Please enter both original and new JSON to compare', 'Missing Input');
                 return;
             }
             
@@ -388,12 +365,7 @@
                 
             } catch (e) {
                 console.error("Error in compareJson:", e);
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error Comparing JSON',
-                    text: e.message,
-                    confirmButtonColor: '#3085d6'
-                });
+                toastr.error(e.message, 'Error Comparing JSON');
             }
         }
         
@@ -431,12 +403,7 @@
                 
             } catch (e) {
                 console.error("Error in showDiff:", e);
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Diff Processing Error',
-                    text: e.message,
-                    confirmButtonColor: '#3085d6'
-                });
+                toastr.error(e.message, 'Diff Processing Error');
                 
                 // Fallback display method - just show side-by-side view
                 const diffContainer = document.getElementById('compare-editor');
@@ -542,12 +509,7 @@
             const baseUrl = document.getElementById('base-url-input').value.trim() || 'http://localhost:4300/#/umredirect';
             
             if (!jsonInput) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Missing Input',
-                    text: 'Please paste a JSON object to build the URL',
-                    confirmButtonColor: '#3085d6'
-                });
+                toastr.warning('Please paste a JSON object to build the URL', 'Missing Input');
                 return;
             }
             
@@ -577,12 +539,7 @@
                 }
                 
                 if (queryParams.length === 0) {
-                    Swal.fire({
-                        icon: 'warning',
-                        title: 'No Valid Parameters',
-                        text: 'No valid parameters found in the JSON object for URL building',
-                        confirmButtonColor: '#3085d6'
-                    });
+                    toastr.warning('No valid parameters found in the JSON object for URL building', 'No Valid Parameters');
                     return;
                 }
                 
@@ -596,21 +553,11 @@
                 document.getElementById('um-result').style.display = 'block';
                 
                 // Show success message
-                Swal.fire({
-                    icon: 'success',
-                    title: 'URL Generated Successfully',
-                    text: 'The UM URL has been generated and is ready to use',
-                    confirmButtonColor: '#3085d6'
-                });
+                toastr.success('The UM URL has been generated and is ready to use', 'URL Generated Successfully');
                 
             } catch (e) {
                 console.error("Error parsing JSON:", e);
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Invalid JSON',
-                    text: 'Please check your JSON format. Error: ' + e.message,
-                    confirmButtonColor: '#3085d6'
-                });
+                toastr.error('Please check your JSON format. Error: ' + e.message, 'Invalid JSON');
             }
         }
         
@@ -631,21 +578,10 @@
             
             try {
                 document.execCommand('copy');
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Copied!',
-                    text: 'URL copied to clipboard',
-                    showConfirmButton: false,
-                    timer: 1500
-                });
+                toastr.success('URL copied to clipboard', 'Copied!');
             } catch (err) {
                 console.error('Failed to copy: ', err);
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Copy Failed',
-                    text: 'Failed to copy URL to clipboard',
-                    confirmButtonColor: '#3085d6'
-                });
+                toastr.error('Failed to copy URL to clipboard', 'Copy Failed');
             }
         }
         
@@ -655,12 +591,7 @@
             if (url && url !== '') {
                 window.open(url, '_blank');
             } else {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'No URL Generated',
-                    text: 'Please generate a URL first',
-                    confirmButtonColor: '#3085d6'
-                });
+                toastr.warning('Please generate a URL first', 'No URL Generated');
             }
         }
     </script>
@@ -796,6 +727,8 @@
     <script src="https://ajaxorg.github.io/ace-builds/src-min-noconflict/ace.js"></script>
     <!-- Add SweetAlert JS -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- Add Toastr JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
     
     <script>
         // Initialize comparison on page load
